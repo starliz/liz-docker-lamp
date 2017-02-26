@@ -30,9 +30,7 @@ RUN apt-get -y install apache2 curl
 # MySQL installation and configuration
 RUN apt-get -y install mysql-server mysql-client pwgen
 # PHP installation
-#==========================================
 RUN apt-get -y install libapache2-mod-php5 php5-mysql
-# php-apc
 
 
 # supervisord
@@ -52,17 +50,10 @@ ADD start-apache2.sh /start-apache2.sh
 ADD apache2.conf /etc/apache2/apache2.conf
 # make sure .sh is executable
 RUN chmod 755 /*.sh
-
-# config to enable .htaccess
-# ADD apache_default /etc/apache2/sites-available/000-default.conf
-# ADD a2enmod rewrite
-# Enable user module, which allows user-specific directories to be accessed using the http://example.com/~user/ syntax.
-#RUN a2enmod userdir
 # Create a folder for html files
 ADD index.html /var/www/html/index.html
 
 # MySQL configuration
-#==========================================
 # starting script
 ADD start-mysqld.sh /start-mysqld.sh
 # make sure *.sh is executable
@@ -70,10 +61,12 @@ RUN chmod 755 /*.sh
 ADD my.cnf /etc/mysql/conf.d/my.cnf
 # Remove pre-installed database
 RUN rm -rf /var/lib/mysql/*
-# Add MySQL utils
+# password variable for admin user
 ENV MYSQL_PASS foobar
-ADD mysql-setup.sh /mysql-setup.sh
+# Creates admin user with password from variable MYSQL_PASS
 ADD create_mysql_admin_user.sh /create_mysql_admin_user.sh
+# Creates database "busplan", grants all to "busman" with password "southparks2e17", creates table "plan" and fills it with "Step one, ..., PROFIT!!!"
+ADD mysql-setup.sh /mysql-setup.sh
 RUN chmod 755 /*.sh
 # Add volumes for MySQL 
 VOLUME  ["/etc/mysql", "/var/lib/mysql" ]
