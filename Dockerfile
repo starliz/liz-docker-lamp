@@ -16,9 +16,35 @@ RUN apt-get update -y
 # "apt-get -y" - Assume "yes" as answer to all prompts and run non-interactively.
 
 
-# Apache installation and configuration
-#==========================================
+# INSTALLATIONS
+#=======================================
+# Convenience and interaction set up
+RUN apt-get install -y bash-completion vim tmux openssh-server openssh-client passwd
+RUN mkdir -p /var/run/sshd
+# adding settings to sshd_config
+RUN sed -ri 's/PermitRootLogin without-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+# Read a pair of username (root) and password (xxx) from standard input and update a group of existing users.
+RUN echo 'root:xxx' | chpasswd
+# Apache installation
 RUN apt-get -y install apache2 curl
+# MySQL installation and configuration
+RUN apt-get -y install mysql-server mysql-client pwgen
+# PHP installation
+#==========================================
+RUN apt-get -y install libapache2-mod-php5 php5-mysql
+# php-apc
+
+
+# supervisord
+#==========================================
+RUN apt-get install -y supervisor
+RUN mkdir -p /var/log/supervisor
+ADD supervisord.conf /etc/
+
+
+# Configurations and setup
+#==========================================
+# Apache configuration
 RUN mkdir -p /var/lock/apache2 /var/run/apache2
 # Add starting scripts
 ADD start-apache2.sh /start-apache2.sh
@@ -35,10 +61,8 @@ RUN chmod 755 /*.sh
 # Create a folder for html files
 ADD index.html /var/www/html/index.html
 
-
-# MySQL installation and configuration
+# MySQL configuration
 #==========================================
-RUN apt-get -y install mysql-server pwgen
 # starting script
 ADD start-mysqld.sh /start-mysqld.sh
 # make sure *.sh is executable
@@ -47,43 +71,34 @@ ADD my.cnf /etc/mysql/conf.d/my.cnf
 # Remove pre-installed database
 RUN rm -rf /var/lib/mysql/*
 # Add MySQL utils
+ENV MYSQL_PASS foobar
+ADD mysql-setup.sh /mysql-setup.sh
 ADD create_mysql_admin_user.sh /create_mysql_admin_user.sh
 RUN chmod 755 /*.sh
 # Add volumes for MySQL 
 VOLUME  ["/etc/mysql", "/var/lib/mysql" ]
 
-
-# PHP installation and setup
-#==========================================
-RUN apt-get -y install libapache2-mod-php5 php5-mysql php-apc
-#RUN apt-get -y install php-mcrypt
+# PHP setup
 #Environment variables to configure php
 ENV PHP_UPLOAD_MAX_FILESIZE 10M
 ENV PHP_POST_MAX_SIZE 10M
-
 
 # The PHP app
 #==========================================
 # Configure /app folder with sample app
 # RUN git clone https://github.com/fermayo/hello-world-lamp.git /app
 # An app example copied from https://github.com/fermayo/hello-world-lamp/blob/master/index.php
-ADD index.php /app/index.php
-#RUN mkdir -p /app && rm -fr /var/www/html && ln -s /app /var/www/html
-RUN rm -fr /var/www/html && ln -s /app /var/www/html
+# and php reading from mysql: http://terokarvinen.com/2016/read-mysql-database-with-php-php-pdo
+RUN rm /var/www/html/index.htm*
+ADD index.php /var/www/html/
 
-
-# supervisord
-#==========================================
-RUN apt-get install -y supervisor
-RUN mkdir -p /var/log/supervisor
-ADD supervisord.conf /etc/
 
 ADD run.sh /run.sh
 RUN chmod 755 /*.sh
 
 # map apache 80 port and 3306 for mysql database server connections.
 # EXPOSE informs Docker that the container listens on the specified network ports
-EXPOSE 80 3306
+EXPOSE 80 22 3306
 
 #CMD ["supervisord", "-n"]
 CMD ["/run.sh"]
