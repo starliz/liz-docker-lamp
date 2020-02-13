@@ -1,0 +1,71 @@
+#1.15
+# LAMP in Docker
+# Based on exercise done for Haaga-Helia Linux course: https://starliz.github.io/2017/02/17/h5-lamp-in-docker.html
+# Original files available at https://github.com/starliz/liz-docker-lamp
+# to get all needed files do:
+# git clone git@github.com:starliz/liz-docker-lamp.git
+# cd ./liz-docker-lamp/
+
+# Build image
+# docker build -t liz/lamp .
+
+# To run container:
+# docker run -i --rm liz/lamp /bin/bash ## “-i” run interactive (Keep STDIN open even if not attached) and run bash process, “-rm” to automatically remove the container when it exits.
+# try SSH connection:
+# docker run --rm -p 2222:22 liz/lamp
+# $ ssh -p 2222 root@localhost
+# OR to run web server inside a container and access it via browser (http://localhost:8080/) on the same laptop.
+# docker run -p 8080:80 liz/lamp ## port -p external:internal
+
+
+# use some ubuntu blueprint image
+FROM ubuntu:trusty
+
+# ================================
+# Installations
+# ================================
+# Avoid need for manual intervention or the interactive post-install configuration dialog.
+ENV DEBIAN_FRONTEND noninteractive
+# Get information on the newest versions of packages and their dependencies.
+RUN apt-get update -y && apt-get install -y curl apache2
+# "apt-get -y" - Assume "yes" as answer to all prompts and run non-interactively. 
+# install supervisord
+RUN apt-get install -y supervisor
+# install BASH, SSH and etc for convenience and interaction
+RUN apt-get install -y bash-completion vim tmux openssh-server openssh-client passwd
+
+# ================================
+# Configurations
+# ================================
+#supervisor
+#---------------------------------
+RUN mkdir -p /var/log/supervisor
+ADD supervisord.conf /etc/
+# Set up BASH, SSH and etc for convenience and interaction
+RUN mkdir -p /var/run/sshd
+# adding settings to sshd_config
+RUN sed -ri 's/PermitRootLogin without-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+# Read a pair of username (root) and password (xxx) from standard input and update a group of existing users.
+RUN echo 'root:xxx' | chpasswd
+EXPOSE 22
+
+# Apache set up
+#---------------------------------
+RUN mkdir -p /var/lock/apache2 /var/run/apache2
+# Add image configuration and scripts
+ADD start-apache2.sh /start-apache2.sh
+# use prepared configuration file for Apache
+ADD apache2.conf /etc/apache2/apache2.conf
+RUN chmod 755 /*.sh
+# map apache 80 port
+# EXPOSE informs Docker that the container listens on the specified network ports
+EXPOSE 80
+# Create a folder for html files and add index.html
+ADD index.html /var/www/html/index.html
+
+
+#ADD run.sh /run.sh
+#RUN chmod 755 /*.sh
+
+CMD ["supervisord", "-n"]
+#CMD ["/run.sh"] #Instead of   CMD ["supervisord", "-n"]
